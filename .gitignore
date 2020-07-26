@@ -1,0 +1,3 @@
+# Build products
+*.o
+*.exe

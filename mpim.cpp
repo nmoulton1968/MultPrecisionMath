@@ -515,8 +515,10 @@ MPI MPI::operator%(const MPI& m) const
 
     // un-normalize
     for(j=0; j<d; ++j)
+    {
         u.Div2();
-
+    }
+    
 	// fix flag if it ever went negative
 	u.m_bOverflow = FALSE;
 
