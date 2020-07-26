@@ -30,115 +30,118 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 class ArcTan
 {
 private:
-	MPI mX;
-	MPI mValue;
-	MPI mOffset;
-	int mExponent;
-	enum { OFFSET = 1000 };
-	const MPI mZero; 
+    MPI mX;
+    MPI mValue;
+    MPI mOffset;
+    int mExponent;
+    enum { OFFSET = 1000 };
+    const MPI mZero;
 
 public:
-	// ctor from int
-	ArcTan(int x)
-	{
-		int j;
+    // ctor from int
+    ArcTan(int x)
+    {
+        int j;
 
-		mValue = 0;
-		mOffset = 1;
-		mExponent = 1;
+        mValue = 0;
+        mOffset = 1;
+        mExponent = 1;
 
-		mX = x;
+        mX = x;
 
-		for(j=0; j<OFFSET; ++j)
-		{
-			mOffset *= 10;
-		}
-	}
+        for(j=0; j<OFFSET; ++j)
+        {
+            mOffset *= 10;
+        }
+    }
 
-	MPI Curr()
-	{
-		return mValue;
-	}
+    MPI Curr()
+    {
+        return mValue;
+    }
 
-	MPI Next()
-	{
-		int j;
-		MPI iTerm;
-		iTerm = (mX ^ mExponent);
-		iTerm *= mOffset;
-		iTerm /= mExponent;
+    MPI Next()
+    {
+        int j;
+        MPI iTerm;
+        iTerm = (mX ^ mExponent);
+        iTerm *= mOffset;
+        iTerm /= mExponent;
 
-		for(j=1; j<mExponent; ++j)
-		{
-			iTerm /= 1000;
-		}
+        for(j=1; j<mExponent; ++j)
+        {
+            iTerm /= 1000;
+        }
 
-		if(iTerm == mZero)
-			return mValue;
+        if(iTerm == mZero)
+            return mValue;
 
-		mValue += iTerm;
-		mExponent += 2;
+        mValue += iTerm;
+        mExponent += 2;
 
-		iTerm = (mX ^ mExponent);
-		iTerm *= mOffset;
-		iTerm /= mExponent;
+        iTerm = (mX ^ mExponent);
+        iTerm *= mOffset;
+        iTerm /= mExponent;
 
-		for(j=1; j< mExponent; ++j)
-		{
-			iTerm /= 1000;
-		}
+        for(j=1; j< mExponent; ++j)
+        {
+            iTerm /= 1000;
+        }
 
-		if(iTerm == mZero) return mValue;
-		mValue -= iTerm;
-		mExponent += 2;
+        if(iTerm == mZero) return mValue;
+        mValue -= iTerm;
+        mExponent += 2;
 
-		return mValue;
-	}
+        return mValue;
+    }
 };
 
 int main(int argc, char* argv[])
 {
-	MPI mCurr, mLast;
-	int i, j;
-	ArcTan a500(500); // arctan(1/2)
-	ArcTan a200(200); // arctan(1/5)
-	ArcTan a125(125); // arctan(1/8)
-	char sCurr[5000];
-	char sLast[5000];
-	char *p1, *p2;
+    cout << "Calculating . . .\n";
+    cout.flush();
 
-	i = 0;
-	sCurr[0] = 0;
-	sLast[0] = 0;
+    MPI mCurr, mLast;
+    int i, j;
+    ArcTan a500(500); // arctan(1/2)
+    ArcTan a200(200); // arctan(1/5)
+    ArcTan a125(125); // arctan(1/8)
+    char sCurr[5000];
+    char sLast[5000];
+    char *p1, *p2;
 
-	do
-	{
-		++i;
-		mLast = mCurr;
-		mCurr = (a500.Next() + a200.Next() + a125.Next())* 4;
+    i = 0;
+    sCurr[0] = 0;
+    sLast[0] = 0;
 
-		if(!(i%2))
-		{
-			strcpy(sLast, sCurr);
-			mCurr.String(sCurr);
-			// how many chars same as last time?
-			p1 = sCurr;
-			p2 = sLast;
-			j = 0;
-			while(*p1++ == *p2++)
-			{
-				++j;
-			}
-			//output current result
-			cout << "Terms=" << i*2 << ", Digits=" << j << ", " << mCurr << "\n";
-			cout.flush();
-		}
-	}
-	while(mLast != mCurr);
+    do
+    {
+        ++i;
+        mLast = mCurr;
+        mCurr = (a500.Next() + a200.Next() + a125.Next())* 4;
 
-	char c;
-	cin >> c;
+        if(!(i%2))
+        {
+            strcpy(sLast, sCurr);
+            mCurr.String(sCurr);
+            // how many chars same as last time?
+            p1 = sCurr;
+            p2 = sLast;
+            j = 0;
+            while(*p1++ == *p2++)
+            {
+                ++j;
+            }
+            //output current result
+            cout << "Terms=" << i*2 << ", Digits=" << j << ", " << mCurr << "\n";
+            cout.flush();
+        }
+    }
+    while(mLast != mCurr);
 
-	return 0;
+    char c;
+    cin >> c;
+
+    return 0;
 }
 

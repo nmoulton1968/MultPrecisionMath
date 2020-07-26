@@ -16,7 +16,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ******************************************************************************/
- 
+
 #include "mpim.h"
 #include <string.h>
 
@@ -143,7 +143,7 @@ MPI MPI::operator+(const int n) const
 
     // digit overflow?
     c = 0;
-    if(w.m_ar[0] & MOD_VALUE)                         
+    if(w.m_ar[0] & MOD_VALUE)
     {
         w.m_ar[0] -= MOD_VALUE;
         c = 1;
@@ -212,7 +212,7 @@ MPI MPI::operator-(const int n) const
 
     // digit overflow?
     c = 0;
-    if(w.m_ar[0] & MOD_VALUE)                         
+    if(w.m_ar[0] & MOD_VALUE)
     {
         w.m_ar[0] += MOD_VALUE;
         c = 1;
@@ -265,19 +265,19 @@ MPI MPI::operator*(const MPI& y) const
         c = 0;
 
         for(j=0; j<n; ++j)
-        {                    
+        {
             if(i+j > MAX_ARRAY-1)
                 continue;
 
             uv = w.m_ar[i+j] + m_ar[j] * y.m_ar[i] + c;
             w.m_ar[i+j] = (INT32)(uv & (MOD_VALUE-1));  // LOWORD
-            c = ((uv >> SHIFT_VALUE) & (MOD_VALUE-1));  // HIWORD 
+            c = ((uv >> SHIFT_VALUE) & (MOD_VALUE-1));  // HIWORD
         }
 
         if(i+j < MAX_ARRAY)
             w.m_ar[i+j] += (INT32)c;
 
-        else if(c > 0)     
+        else if(c > 0)
             w.m_bOverflow = TRUE;
     }
     return w;
@@ -402,7 +402,7 @@ MPI MPI::operator/(const MPI& m) const
     MPI u;    // dividend
     MPI v;    // divisor
     MPI q;    // quotient
-	MPI s;    // trial subtract amount
+    MPI s;    // trial subtract amount
     INT32 qh; // trial quotient
 
     int j;    // index
@@ -428,8 +428,8 @@ MPI MPI::operator/(const MPI& m) const
     for(j=n; j>=t; --j)
     {
         // calculate trial quotient, get LOWORD
-		INT64 temp = (((INT64)u.m_ar[j] * MOD_VALUE) + u.m_ar[j-1]) / v.m_ar[t-1];
-		qh = (INT32)temp;
+        INT64 temp = (((INT64)u.m_ar[j] * MOD_VALUE) + u.m_ar[j-1]) / v.m_ar[t-1];
+        qh = (INT32)temp;
 
         // adjust quotient if too large
         if(qh & MOD_VALUE)
@@ -438,9 +438,9 @@ MPI MPI::operator/(const MPI& m) const
         // multiply and subtract
         s = v;
         s.ShiftLeft(j-t);
-		u -= s * qh;
+        u -= s * qh;
 
-		// adjust result if it went negative
+        // adjust result if it went negative
         while(u.m_ar[MAX_ARRAY-1] == MOD_VALUE-1)
         {
             --qh;   // adjust quotient digit
@@ -467,7 +467,7 @@ MPI MPI::operator%(const MPI& m) const
 {
     MPI u;    // dividend
     MPI v;    // divisor
-	MPI s;    // trial subtract amount
+    MPI s;    // trial subtract amount
     INT32 qh; // trial quotient
     int d;    // normalization factor
 
@@ -496,19 +496,19 @@ MPI MPI::operator%(const MPI& m) const
     for(j=n; j>=t; --j)
     {
         // calculate trial quotient, get LOWORD
-		INT64 temp = (((INT64)u.m_ar[j] * MOD_VALUE) + u.m_ar[j-1]) / v.m_ar[t-1];
-		qh = (INT32)temp;
+        INT64 temp = (((INT64)u.m_ar[j] * MOD_VALUE) + u.m_ar[j-1]) / v.m_ar[t-1];
+        qh = (INT32)temp;
 
         // adjust quotient if too large
         if(qh & MOD_VALUE)
             qh = MOD_VALUE -1;
 
         // multiply and subtract
-		s = v;
-		s.ShiftLeft(j-t);
-		u -= s * qh;
+        s = v;
+        s.ShiftLeft(j-t);
+        u -= s * qh;
 
-		// adjust result if it went negative
+        // adjust result if it went negative
         while(u.m_ar[MAX_ARRAY-1] == MOD_VALUE-1)
             u += s; // add back
     }
@@ -518,9 +518,9 @@ MPI MPI::operator%(const MPI& m) const
     {
         u.Div2();
     }
-    
-	// fix flag if it ever went negative
-	u.m_bOverflow = FALSE;
+
+    // fix flag if it ever went negative
+    u.m_bOverflow = FALSE;
 
     return u;  // the remainder
 }
@@ -640,24 +640,78 @@ MPI MPI::ModPow(const MPI& y, const MPI& m) const
 // ARITHMETIC SHORTCUT FORMS
 /*****************************************************************************/
 
-MPI MPI::operator+=(const MPI& m) { return *this = *this + m; }
-MPI MPI::operator-=(const MPI& m) { return *this = *this - m; }
-MPI MPI::operator*=(const MPI& m) { return *this = *this * m; }
-MPI MPI::operator/=(const MPI& m) { return *this = *this / m; }
-MPI MPI::operator%=(const MPI& m) { return *this = *this % m; }
-MPI MPI::operator^=(const MPI& m) { return *this = *this ^ m; }
+MPI MPI::operator+=(const MPI& m)
+{
+    return *this = *this + m;
+}
+MPI MPI::operator-=(const MPI& m)
+{
+    return *this = *this - m;
+}
+MPI MPI::operator*=(const MPI& m)
+{
+    return *this = *this * m;
+}
+MPI MPI::operator/=(const MPI& m)
+{
+    return *this = *this / m;
+}
+MPI MPI::operator%=(const MPI& m)
+{
+    return *this = *this % m;
+}
+MPI MPI::operator^=(const MPI& m)
+{
+    return *this = *this ^ m;
+}
 
-MPI MPI::operator+=(const int n)  { return *this = *this + n; }
-MPI MPI::operator-=(const int n)  { return *this = *this - n; }
-MPI MPI::operator*=(const int n)  { return *this = *this * n; }
-MPI MPI::operator/=(const int n)  { return *this = *this / n; }
-MPI MPI::operator%=(const int n)  { return *this = *this % n; }
-MPI MPI::operator^=(const int n)  { return *this = *this ^ n; }
+MPI MPI::operator+=(const int n)
+{
+    return *this = *this + n;
+}
+MPI MPI::operator-=(const int n)
+{
+    return *this = *this - n;
+}
+MPI MPI::operator*=(const int n)
+{
+    return *this = *this * n;
+}
+MPI MPI::operator/=(const int n)
+{
+    return *this = *this / n;
+}
+MPI MPI::operator%=(const int n)
+{
+    return *this = *this % n;
+}
+MPI MPI::operator^=(const int n)
+{
+    return *this = *this ^ n;
+}
 
-MPI MPI::operator++() { *this = *this + 1; return *this; }
-MPI MPI::operator++(int) { MPI m = *this; *this = *this + 1; return m; }
-MPI MPI::operator--() { *this = *this - 1; return *this; }
-MPI MPI::operator--(int) { MPI m = *this; *this = *this - 1; return m; }
+MPI MPI::operator++()
+{
+    *this = *this + 1;
+    return *this;
+}
+MPI MPI::operator++(int)
+{
+    MPI m = *this;
+    *this = *this + 1;
+    return m;
+}
+MPI MPI::operator--()
+{
+    *this = *this - 1;
+    return *this;
+}
+MPI MPI::operator--(int)
+{
+    MPI m = *this;
+    *this = *this - 1;
+    return m;
+}
 
 /*****************************************************************************/
 // LOGICAL OPERATORS/ COMPARISON/ SHIFTING
@@ -884,7 +938,7 @@ void MPI::ShiftLeft(const int n)
 
 // shift by n digit positions,
 void MPI::ShiftRight(const int n)
-{   
+{
     int i;  // index
 
     if(n >= MAX_ARRAY-1)

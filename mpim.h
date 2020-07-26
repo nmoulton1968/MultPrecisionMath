@@ -50,7 +50,7 @@ using namespace std;
 #define MOD_VALUE 0x10000 // largest value stored in a single digit
 #define SHIFT_VALUE 16    // how many bits in MOD_VALUE
 
-class MPI 
+class MPI
 {
 public:  // data
     INT32 m_ar[MAX_ARRAY];
