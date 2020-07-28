@@ -1,6 +1,6 @@
 /******************************************************************************
 MPIM - Multi Precision Integer Math
-Copyright (C) 1997-2016 Norm Moulton
+Copyright (C) 1997-2020 Norm Moulton
 
 This class provides a set of functions to perform multi-precision integer
 arithmetic operations. It defines the MPI multi-byte numeric type with a
@@ -35,107 +35,115 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 using namespace std;
 
-// general
-#define BOOL int
-#define TRUE -1
-#define FALSE 0
+#ifndef MPIM_H
+#define MPIM_H
 
-// MPI attributes
-#define MPI_BUFF 20000     // number of chars in decimal representation
-#define MAX_ARRAY 5000      // number of digits in internal representation
-#define INT32 __int32     // internal digit storage
-#define INT64 __int64     // intermediate results of digit math
-//#define MOD_VALUE 0x100 // largest value stored in a single digit
-//#define SHIFT_VALUE 8   // how many bits in MOD_VALUE
-#define MOD_VALUE 0x10000 // largest value stored in a single digit
-#define SHIFT_VALUE 16    // how many bits in MOD_VALUE
+// Constants.
+#define BASE 10              // Output display base.
+#define MPI_BUFF 5000        // Number of chars in decimal representation.
+#define INT32 long           // Internal digit storage.
+#define INT64 long long      // Intermediate results of digit math.
+#define MOD_VALUE 0x40000000 // Largest value stored in a single digit.
+#define SHIFT_VALUE 30       // How many bits in MOD_VALUE.
+//#define MOD_VALUE 0x100    // Largest value stored in a single digit.
+//#define SHIFT_VALUE 8      // How many bits in MOD_VALUE.
+
+// Number of digits in internal representation.
+#define MAX_ARRAY 500 // 15000 bits.
 
 class MPI
 {
-public:  // data
-    INT32 m_ar[MAX_ARRAY];
-    BOOL m_bOverflow;
+public:  // Data.
+    INT32 mArray[MAX_ARRAY];
+    bool mIsOverflow;
 
-public: // functions
+public: // Functions.
 
-    // constructors/conversions
+    // Constructors/ Assignments.
     MPI();
-    MPI(char* psz); // construct from a decimal string
-    MPI(INT32 n);   // construct from an integer
-    void Clear();   // set to zero
+    void Zero();  // Set to zero.
+    MPI(char*);   // Construct from a decimal string.
+    MPI(int);     // Construct from an integer.
+
     MPI operator=(const MPI&);
-    MPI operator=(int n);
-    MPI operator=(char* psz);
+    MPI operator=(int);
+    MPI operator=(char*);
 
+    // Arithmetic, eg.  x = y + z.
+    MPI operator+(const MPI&) const;
+    MPI operator+(int) const;
+    MPI operator-(const MPI&) const;
+    MPI operator-(int) const;
+    MPI operator*(const MPI&) const;
+    MPI operator*(int) const;
+    MPI operator/(const MPI&) const;
+    MPI operator/(int) const;
+    MPI operator%(const MPI&) const;
+    MPI operator%(int) const;
+    MPI operator^(const MPI&) const;
+    MPI operator^(int) const;
 
-    // normal arithmetic, eg.  x = y + z
-    MPI operator+(const MPI& m) const;
-    MPI operator+(const int n) const;
-    MPI operator-(const MPI& m) const;
-    MPI operator-(const int n) const;
-    MPI operator*(const MPI& m) const;
-    MPI operator*(const int n) const;
-    MPI operator/(const MPI& m) const;
-    MPI operator/(const int n) const;
-    MPI operator%(const MPI& m) const;
-    MPI operator%(const int n) const;
-    MPI operator^(const MPI& m) const;
-    MPI operator^(const int n) const;
     MPI operator++();
     MPI operator++(int);
     MPI operator--();
     MPI operator--(int);
 
-    // shortcut forms, eg. x += y
-    MPI operator+=(const MPI& m);
-    MPI operator+=(const int n);
-    MPI operator-=(const MPI& m);
-    MPI operator-=(const int n);
-    MPI operator*=(const MPI& m);
-    MPI operator*=(const int n);
-    MPI operator/=(const MPI& m);
-    MPI operator/=(const int n);
-    MPI operator%=(const MPI& m);
-    MPI operator%=(const int n);
-    MPI operator^=(const MPI& m);
-    MPI operator^=(const int n);
+    // Shortcut Forms, eg. x += y.
+    MPI operator+=(const MPI&);
+    MPI operator+=(int);
+    MPI operator-=(const MPI&);
+    MPI operator-=(int);
+    MPI operator*=(const MPI&);
+    MPI operator*=(int);
+    MPI operator/=(const MPI&);
+    MPI operator/=(int);
+    MPI operator%=(const MPI&);
+    MPI operator%=(int);
+    MPI operator^=(const MPI&);
+    MPI operator^=(int);
 
-    // comparison/ logical, eg. if(x < y)
-    BOOL operator<(const MPI& m) const;
-    BOOL operator>(const MPI& m) const;
-    BOOL operator<=(const MPI& m) const;
-    BOOL operator>=(const MPI& m) const;
-    BOOL operator==(const MPI& m) const;
-    BOOL operator!=(const MPI& m) const;
+    // Multiplication: Simple method.
+    MPI MultSmpl(const MPI& y) const;
 
-    // Multiplication by Divide and Conquer
-    MPI MultDC(MPI& m) const;
+    // Multiplication: Divide and Conquer.
+    MPI MultDC(const MPI&) const;
 
-    // Multiplication A La Russe
-    MPI MultALR(MPI& m) const;
+    // Multiplication: A La Russe.
+    MPI MultALR(const MPI&) const;
 
-    // modulus versions, eg. x.ModMult(y, m)
-    MPI ModMult(const MPI& y, const MPI& m) const;
-    MPI ModPow(const MPI& y, const MPI& m) const;
+    // Special Divide: Return quotient and remainder.
+    MPI Divide(const MPI&, MPI&) const;
 
-    // c++ stream i/o
-    friend ostream& operator<<(ostream& os, MPI& m);
-    friend istream& operator>>(istream& is, MPI& m);
-    char* String(char a[]) const;  // convert MPI into decimal char buffer
+    // Modulus Functions.
+    MPI ModMult(const MPI&, const MPI&) const;
+    MPI ModPow(const MPI&, const MPI&) const;
 
-    // diagnostic functions
-    BOOL IsValid() const;          // check validity of MPI
-    void Display() const;          // show internal representation
+    // Comparison/ Logical, eg. if(x < y).
+    bool operator<(const MPI&) const;
+    bool operator>(const MPI&) const;
+    bool operator<=(const MPI&) const;
+    bool operator>=(const MPI&) const;
+    bool operator==(const MPI&) const;
+    bool operator!=(const MPI&) const;
 
-    // helper functions
-    inline void ShiftLeft(const int n);   // shift internal digits n positions
-    inline void ShiftRight(const int n);  // shift internal digits n positions
-    inline void Mult2();                  // quick multiply (using shift) by 2
-    inline void Div2();                   // quick divide (using shift) by 2
+    // Conversions and I/O.
+    int Integer() const;          // Convert to integer.
+    char* String(char []) const;  // Convert to decimal char buffer.
+    friend ostream& operator<<(ostream&, MPI&);
+    friend istream& operator>>(istream&, MPI&);
 
-    INT32 MSDigit() const;         // most significant digit
-    int Size() const;              // count number of significant digits
-    inline int Largest(MPI& m) const;  // return Size() of largest
+    // Helper Functions and Diagnostics
+    bool IsValid() const;                 // Check validity of MPI.
+    void Display() const;                 // Show internal representation.
+    inline void ShiftLeft(const int);     // Shift internal digits n positions.
+    inline void ShiftRight(const int);    // Shift internal digits n positions.
+    inline void Mult2();                  // Quick multiply (using shift) by 2.
+    inline void Div2();                   // Quick divide (using shift) by 2.
+
+    INT32 MSDigit() const;                // Most significant digit.
+    int Size() const;                     // Count number of significant digits.
+    inline int Largest(const MPI&) const; // Return Size() of largest.
 
 };
+#endif
 

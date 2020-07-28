@@ -87,5 +87,6 @@ main()
     }
     while(mLast != mCurr);
 
+    cout << "Reached limit of calculation capability.\n";
     return 0;
 }

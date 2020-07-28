@@ -1,6 +1,6 @@
 /******************************************************************************
 MPIM - Multi Precision Integer Math
-Copyright (C) 1997-2016 Norm Moulton
+Copyright (C) 1997-2020 Norm Moulton
 
 This program is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published by
@@ -18,54 +18,61 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ******************************************************************************/
 
 #include "mpim.h"
-#include <string.h>
+#include <cstring>
 
 /*****************************************************************************/
 // CONSTRUCTORS and CONVERSIONS
 /*****************************************************************************/
 
-// construct and initialize to zero
+// Construct and initialize to zero.
 MPI::MPI()
 {
-    Clear();
+    Zero();
 }
 
-// set value to zero
-void MPI::Clear()
+// Initialize value to zero.
+void MPI::Zero()
 {
     int i;
     for(i=0; i<MAX_ARRAY; ++i)
-        m_ar[i] = 0;
+    {
+        mArray[i] = 0;
+    }
 
-    m_bOverflow = FALSE;
+    mIsOverflow = false;
 }
 
-// convert from decimal string representation
+// Construct from decimal string representation.
 MPI::MPI(char* psz)
 {
-    int nDigit;
-
-    Clear();
-
-    // error
-    if(psz == NULL)
+    // Validate input.
+    if(psz == 0)
+    {
         return;
+    }
 
-    // for each digit, multiply by 10 and add next digit
+    Zero();
+
+    // For each digit . . .
     while(*psz != 0)
     {
+        // Multiply by ten.
         *this = *this * 10;
-        nDigit = *psz - '0';
-        *this = *this + nDigit;
+
+        // Add digit value.
+        int digit = *psz - '0';
+        *this = *this + digit;
+
+        // Move to next digit.
         ++psz;
     }
 }
 
-// convert from integer
-MPI::MPI(INT32 n)
+// Construct from integer.
+MPI::MPI(int n)
 {
-    Clear();
-    m_ar[0] = n;
+    Zero();
+    mArray[0] = n & (MOD_VALUE-1);
 }
 
 /*****************************************************************************/
@@ -74,15 +81,17 @@ MPI::MPI(INT32 n)
 
 MPI MPI::operator=(const MPI& m)
 {
-    // protect against assigning object to itself
+    // Protect against assigning object to itself.
     if(&m == this) return *this;
 
-    // duplicate the array
-    int i;
-    for(i=0; i<MAX_ARRAY; ++i)
-        m_ar[i] = m.m_ar[i];
+    // Duplicate the array.
+    for(int i=0; i<MAX_ARRAY; ++i)
+    {
+        mArray[i] = m.mArray[i];
+    }
 
-    m_bOverflow = m.m_bOverflow;
+    mIsOverflow = m.mIsOverflow;
+
     return *this;
 }
 
@@ -102,139 +111,147 @@ MPI MPI::operator=(char* psz)
 // ADDITION AND SUBTRACTION
 /*****************************************************************************/
 
-// normal add MPI with MPI
-// Algorithm 14.7
+// Add MPI + MPI.
+// Algorithm based on Menezes, 14.7, p. 594.
 MPI MPI::operator+(const MPI& m) const
 {
-    MPI w; // result
-    int c;    // carry
-    int i;    // index
+    MPI w;    // result
+    int carry = 0;
 
-    for(i=0, c=0; i<MAX_ARRAY; ++i)
+    for(int i=0; i<MAX_ARRAY; ++i)
     {
-        // add current digits
-        w.m_ar[i] = m_ar[i] + m.m_ar[i] + c;
+        // Add current digits.
+        w.mArray[i] = mArray[i] + m.mArray[i] + carry;
 
-        // test for digit overflow
-        if(w.m_ar[i] & MOD_VALUE)
+        // Test for digit overflow.
+        if(w.mArray[i] & MOD_VALUE)
         {
-            w.m_ar[i] -= MOD_VALUE;
-            c = 1;
+            w.mArray[i] -= MOD_VALUE;
+            carry = 1;
         }
         else
-            c = 0;
+        {
+            carry = 0;
+        }
     }
 
-    // if still carry, whole result is overflow
-    w.m_bOverflow |= (c != 0);
+    // If still carry, whole result is overflow.
+    w.mIsOverflow |= (carry != 0);
 
     return w;
 }
 
-// normal add MPI with int
-MPI MPI::operator+(const int n) const
+// Add MPI + int.
+// Algorithm based on Menezes, 14.7, p. 594.
+MPI MPI::operator+(int n) const
 {
     MPI w;
-    int c;     // carry
-    int i;     // index
 
-    // add argument digit
-    w.m_ar[0] = m_ar[0] + n;
+    n = n & (MOD_VALUE-1);
 
-    // digit overflow?
-    c = 0;
-    if(w.m_ar[0] & MOD_VALUE)
+    // Add argument digit.
+    w.mArray[0] = mArray[0] + n;
+
+    // Digit overflow?
+    int carry = 0;
+    if(w.mArray[0] & MOD_VALUE)
     {
-        w.m_ar[0] -= MOD_VALUE;
-        c = 1;
+        w.mArray[0] -= MOD_VALUE;
+        carry = 1;
     }
 
-    // copy all other digits, propagating possible carry
-    for(i=1; i<MAX_ARRAY; ++i)
+    // Copy all other digits, propagating possible carry.
+    for(int i=1; i<MAX_ARRAY; ++i)
     {
-        // copy digit, add carry
-        w.m_ar[i] = m_ar[i] + c;
+        // Copy digit, add carry.
+        w.mArray[i] = mArray[i] + carry;
 
-        // test for digit overflow
-        if(w.m_ar[i] & MOD_VALUE)
+        // Test for digit overflow.
+        if(w.mArray[i] & MOD_VALUE)
         {
-            w.m_ar[i] -= MOD_VALUE;
-            c = 1;
+            w.mArray[i] -= MOD_VALUE;
+            carry = 1;
         }
         else
-            c = 0;
+        {
+            carry = 0;
+        }
     }
 
-    // if still carry, whole result is overflow
-    w.m_bOverflow |= (c != 0);
+    // If carry still exists, whole result is an overflow.
+    w.mIsOverflow |= (carry != 0);
 
     return w;
 }
 
-// normal subtract MPI with MPI
-// Algorithm 14.9
+// Subtract MPI - MPI.
+// Algorithm based on Menezes, 14.9, p. 595.
 MPI MPI::operator-(const MPI& m) const
 {
     MPI w;
-    int c;  // carry
-    int i;  // index
+    int carry = 0;
 
-    for(i=0, c=0; i<MAX_ARRAY; ++i)
+    for(int i=0; i<MAX_ARRAY; ++i)
     {
-        // subtract current digits
-        w.m_ar[i] = m_ar[i] - m.m_ar[i] - c;
+        // Subtract current digits.
+        w.mArray[i] = mArray[i] - m.mArray[i] - carry;
 
-        // test for digit overflow
-        if(w.m_ar[i] & MOD_VALUE)
+        // Test for digit overflow.
+        if(w.mArray[i] & MOD_VALUE)
         {
-            w.m_ar[i] += MOD_VALUE;
-            c = 1;
+            w.mArray[i] += MOD_VALUE;
+            carry = 1;
         }
         else
-            c = 0;
+        {
+            carry = 0;
+        }
     }
 
-    // if still carry, whole result is overflow
-    w.m_bOverflow |= (c != 0);
+    // If carry still exists, whole result is an overflow.
+    w.mIsOverflow |= (carry != 0);
 
     return w;
 }
 
-// normal subtract MPI with int
-MPI MPI::operator-(const int n) const
+// Subtract MPI - int.
+// Algorithm based on Menezes, 14.9, p. 595.
+MPI MPI::operator-(int n) const
 {
     MPI w;
-    int c;  // carry
-    int i;  // index
 
-    // subtract argument digit
-    w.m_ar[0] = m_ar[0] - n;
+    n = n & (MOD_VALUE-1);
 
-    // digit overflow?
-    c = 0;
-    if(w.m_ar[0] & MOD_VALUE)
+    // Subtract argument digit.
+    w.mArray[0] = mArray[0] - n;
+
+    // Digit overflow?
+    int carry = 0;
+    if(w.mArray[0] & MOD_VALUE)
     {
-        w.m_ar[0] += MOD_VALUE;
-        c = 1;
+        w.mArray[0] += MOD_VALUE;
+        carry = 1;
     }
 
-    for(i=1; i<MAX_ARRAY; ++i)
+    for(int i=1; i<MAX_ARRAY; ++i)
     {
-        // subtract current digits
-        w.m_ar[i] = m_ar[i] - c;
+        // Subtract current digits.
+        w.mArray[i] = mArray[i] - carry;
 
-        // test for digit overflow
-        if(w.m_ar[i] & MOD_VALUE)
+        // Test for digit overflow.
+        if(w.mArray[i] & MOD_VALUE)
         {
-            w.m_ar[i] += MOD_VALUE;
-            c = 1;
+            w.mArray[i] += MOD_VALUE;
+            carry = 1;
         }
         else
-            c = 0;
+        {
+            carry = 0;
+        }
     }
 
-    // if still carry, whole result is overflow
-    w.m_bOverflow |= (c != 0);
+    // If carry still exists, whole result is an overflow.
+    w.mIsOverflow |= (carry != 0);
 
     return w;
 }
@@ -243,83 +260,99 @@ MPI MPI::operator-(const int n) const
 // MULTIPLICATION
 /*****************************************************************************/
 
-// normal multiply MPI with MPI
-// Algorithm 14.12
-//MPI MPI::MultALR(MPI& y) const
+#define BREAK_EVEN 150
+
+// Recursize multiply controller.
 MPI MPI::operator*(const MPI& y) const
 {
+    if(Size() < BREAK_EVEN || y.Size() < BREAK_EVEN)
+    {
+        return MultSmpl(y);
+    }
+    else
+    {
+        return MultDC(y);
+    }
+}
+
+// Multiply MPI * MPI.
+// Algorithm based on Menezes, 14.12, p. 595.
+MPI MPI::MultSmpl(const MPI& y) const
+{
     MPI w;  // result
-    int i;  // index
-    int j;  // index
-    int n;  // # digits in x
-    int t;  // # digits in y
 
     INT64 uv; // double the precision of single digit
-    INT64 c;  // carry
+    INT64 carry;
 
-    n = Size();   // get # digits in x
-    t = y.Size(); // get # digits in y
+    int n = Size();   // Get # digits in x.
+    int t = y.Size(); // Get # digits in y.
 
-    for(i=0; i<t; ++i)
+    for(int i=0; i<t; ++i)
     {
-        c = 0;
+        carry = 0;
 
+        int j;
         for(j=0; j<n; ++j)
         {
             if(i+j > MAX_ARRAY-1)
                 continue;
 
-            uv = w.m_ar[i+j] + m_ar[j] * y.m_ar[i] + c;
-            w.m_ar[i+j] = (INT32)(uv & (MOD_VALUE-1));  // LOWORD
-            c = ((uv >> SHIFT_VALUE) & (MOD_VALUE-1));  // HIWORD
+            uv = (INT64)w.mArray[i+j] + (INT64)mArray[j] * (INT64)y.mArray[i] + carry;
+            w.mArray[i+j] = (INT32)(uv & (MOD_VALUE-1));  // LOWORD.
+            carry = ((uv >> SHIFT_VALUE) & (MOD_VALUE-1));  // HIWORD.
         }
 
         if(i+j < MAX_ARRAY)
-            w.m_ar[i+j] += (INT32)c;
-
-        else if(c > 0)
-            w.m_bOverflow = TRUE;
+        {
+            w.mArray[i+j] += (INT32)carry;
+        }
+        else if(carry > 0)
+        {
+            w.mIsOverflow = true;
+        }
     }
+
     return w;
 }
 
-// normal multiply MPI with int
-MPI MPI::operator*(const int y) const
+// Multiply MPI * int.
+// Algorithm based on Menezes, 14.12, p. 595.
+MPI MPI::operator*(int y) const
 {
     MPI w;  // result
-    int j;  // index
     int n;  // # digits in x
 
     INT64 uv; // double the precision of single digit
-    INT64 c;  // carry
+    INT64 carry;
 
-    n = Size()+1;   // get # digits in x + 1
-    c = 0;
+    n = Size()+1;   // Get # digits in x + 1.
+    y = y & (MOD_VALUE-1);
+    carry = 0;
 
-    for(j=0; j<n; ++j)
+    for(int j=0; j<n; ++j)
     {
-        uv = (INT64)m_ar[j] * (INT64)y + c;
-        w.m_ar[j] = (INT32)(uv & (MOD_VALUE-1));   // LOWORD
-        c = ((uv >> SHIFT_VALUE) & (MOD_VALUE-1)); // HIWORD
+        uv = (INT64)mArray[j] * (INT64)y + carry;
+        w.mArray[j] = (INT32)(uv & (MOD_VALUE-1));   // LOWORD
+        carry = ((uv >> SHIFT_VALUE) & (MOD_VALUE-1)); // HIWORD
     }
 
-    if(c > 0)
-        w.m_bOverflow = TRUE;
+    if(carry > 0)
+    {
+        w.mIsOverflow = true;
+    }
 
     return w;
 }
 
-// normal multiply MPI with MPI
-// a la russe algorithm, brassard p. 4
-//MPI MPI::operator*(const MPI& m) const
-MPI MPI::MultALR(MPI& m) const
+// Multiply MPI * MPI, A la Russe.
+// Algorithm based on Brassard, p. 4.
+MPI MPI::MultALR(const MPI& m) const
 {
-    MPI mProd; // result
+    MPI w; // result
     MPI x; // multiplicand
     MPI y; // multiplier
-    int i, j;  // indices
 
-    // optimize order, better if multiplier is smaller
+    // Optimize order; better when multiplier is smaller.
     if(x < y)
     {
         x = m;
@@ -331,72 +364,82 @@ MPI MPI::MultALR(MPI& m) const
         y = m;
     }
 
-    // calc how many loops to make
-    j = x.Size() * SHIFT_VALUE;
+    // Calculate how many loops to perform.
+    int j = x.Size() * SHIFT_VALUE;
 
-    for(i=0; i<j; ++i)
+    for(int i=0; i<j; ++i)
     {
-        // sum if odd
-        if(y.m_ar[0] & 1)
-            mProd += x;
+        // Sum if odd.
+        if(y.mArray[0] & 1)
+        {
+            w += x;
+        }
 
         x.Mult2();
         y.Div2();
     }
-    return mProd;
+
+    return w;
 }
 
-// normal multiply MPI with MPI
-// divide and conquer algorithm, brassard p. 219-223
-MPI MPI::MultDC(MPI& m) const
+// Multiply MPI * MPI, Divide and Conquer.
+// Algorithm based on Brassard, p. 219-223.
+MPI MPI::MultDC(const MPI& m) const
 {
-    MPI mProd;       // result
+    MPI d;           // result product
     MPI w, x, y, z;  // split pieces of the arguments
     MPI p, q, r;     // intermediate products
-    int i;           // index
-    int nFull, nHalf; // full size and split position of arguements
+    int f, h;        // full and half size of arguements
 
-    nFull = Largest(m)-1;  // use helper fn()
-    nHalf = nFull/2;
+    f = Largest(m)-1;
+    h = f/2;
 
-    // assign w
-    for(i=nHalf; i<nFull; ++i)
-        w.m_ar[i-nHalf] = m_ar[i];
+    // Assign w.
+    for(int i=h; i<f; ++i)
+    {
+        w.mArray[i-h] = mArray[i];
+    }
 
-    // assign x
-    for(i=0; i<nHalf; ++i)
-        x.m_ar[i] = m_ar[i];
+    // Assign x.
+    for(int i=0; i<h; ++i)
+    {
+        x.mArray[i] = mArray[i];
+    }
 
-    // assign y
-    for(i=nHalf; i<nFull; ++i)
-        y.m_ar[i-nHalf] = m.m_ar[i];
+    // Assign y.
+    for(int i=h; i<f; ++i)
+    {
+        y.mArray[i-h] = m.mArray[i];
+    }
 
-    // assign z
-    for(i=0; i<nHalf; ++i)
-        z.m_ar[i] = m.m_ar[i];
+    // Assign z.
+    for(int i=0; i<h; ++i)
+    {
+        z.mArray[i] = m.mArray[i];
+    }
 
-    // calculate three products
+    // Calculate three products.
     p = w * y;
     q = x * z;
     r = (w + x) * (y + z);
 
-    mProd = p;
-    mProd.ShiftLeft(nHalf);
+    d = p;
+    d.ShiftLeft(h);
 
-    mProd += r - p - q;
-    mProd.ShiftLeft(nHalf);
+    d += r - p - q;
+    d.ShiftLeft(h);
 
-    mProd += q;
+    d += q;
 
-    return mProd;
+    return d;
 }
 
 /*****************************************************************************/
 // DIVISION AND MODULUS
 /*****************************************************************************/
 
-// normal divide MPI with MPI
-// Algorithm D by Donald Knuth, p. 257
+// Divide MPI / MPI, Classical.
+// Algorithm based on Knuth, D, p. 257.
 MPI MPI::operator/(const MPI& m) const
 {
     MPI u;    // dividend
@@ -404,180 +447,280 @@ MPI MPI::operator/(const MPI& m) const
     MPI q;    // quotient
     MPI s;    // trial subtract amount
     INT32 qh; // trial quotient
+    INT32 d;  // normalization factor
 
-    int j;    // index
-    int n;    // # digits in u
-    int t;    // # digits in v
-
-    // work with local copies
+    // Work with local copies
     u = *this;
     v = m;
 
-    // normalize
-    while(v.MSDigit() < MOD_VALUE/2)
+#if 0
+    if(u.Size() == 0)
+        return MPI(0);
+
+    if(v.Size() == 0)
     {
-        u.Mult2();
-        v.Mult2();
+        q.mIsOverflow = true;
+        return q;
     }
+#endif
 
-    // get # digits
-    t = v.Size();
-    n = u.Size();
+    // Normalize.
+    d = MOD_VALUE / (v.MSDigit() + 1);
+    u *= (int)d;
+    v *= (int)d;
 
-    // main calculation loop
-    for(j=n; j>=t; --j)
+    // Get # digits.
+    int t = v.Size();
+    int n = u.Size();
+
+    // Main calculation loop.
+    for(int j=n; j>=t; --j)
     {
-        // calculate trial quotient, get LOWORD
-        INT64 temp = (((INT64)u.m_ar[j] * MOD_VALUE) + u.m_ar[j-1]) / v.m_ar[t-1];
-        qh = (INT32)temp;
+        // Calculate trial quotient.
+        qh = (((INT64)u.mArray[j] * MOD_VALUE) + u.mArray[j-1]) / v.mArray[t-1];
 
-        // adjust quotient if too large
+        // Adjust quotient if too large.
         if(qh & MOD_VALUE)
             qh = MOD_VALUE -1;
 
-        // multiply and subtract
+        // Multiply and subtract.
         s = v;
         s.ShiftLeft(j-t);
         u -= s * qh;
 
-        // adjust result if it went negative
-        while(u.m_ar[MAX_ARRAY-1] == MOD_VALUE-1)
+        // Adjust result if it went negative.
+        while(u.mArray[MAX_ARRAY-1] == MOD_VALUE-1)
         {
-            --qh;   // adjust quotient digit
-            u += s; // add back
-            u.m_bOverflow = FALSE;
+            --qh;   // Adjust quotient digit.
+            u += s; // Add back.
+            u.mIsOverflow = false;
         }
 
-        // set the quotient digit we just found
-        q.m_ar[j-t] = qh;
+        // Set the quotient digit we just found.
+        q.mArray[j-t] = qh;
     }
+
     return q;
 }
 
-// normal divide MPI with int
-MPI MPI::operator/(const int n) const
+// Divide MPI / int.
+// Algorithm based on Knuth, D, p. 257.
+MPI MPI::operator/(int y) const
 {
-    return *this / MPI(n);
+    MPI u;    // dividend
+    INT32 v;  // divisor
+    MPI q;    // quotient
+    MPI s;    // trial subtract amount
+    INT32 qh; // trial quotient
+    INT32 d;  // normalization factor
+
+    // Work with local copies.
+    u = *this;
+    v = y & (MOD_VALUE-1);
+
+    // Normalize.
+    d = MOD_VALUE / (v + 1);
+    u *= (int)d;
+    v *= (int)d;
+
+    // Get # digits.
+    int n = u.Size(); // # digits in u.
+
+    // Main calculation loop.
+    for(int j=n; j>=1; --j)
+    {
+        // Calculate trial quotient.
+        qh = (((INT64)u.mArray[j] * MOD_VALUE) + u.mArray[j-1]) / v;
+
+        // Adjust quotient if too large.
+        if(qh & MOD_VALUE)
+            qh = MOD_VALUE -1;
+
+        // Multiply and subtract.
+        s = v;
+        s.ShiftLeft(j-1);
+        u -= s * qh;
+
+        // Adjust result if it went negative.
+        while(u.mArray[MAX_ARRAY-1] == MOD_VALUE-1)
+        {
+            --qh;   // Adjust quotient digit.
+            u += s; // Add back.
+            u.mIsOverflow = false;
+        }
+
+        // Set the quotient digit we just found.
+        q.mArray[j-1] = qh;
+    }
+
+    return q;
 }
 
-
-// normal modulus, MPI with MPI
-// Algorithm D by Donald Knuth, p. 257
+// Modulus, MPI % MPI.
+// Algorithm based on Knuth, D, p. 257.
 MPI MPI::operator%(const MPI& m) const
 {
     MPI u;    // dividend
     MPI v;    // divisor
     MPI s;    // trial subtract amount
     INT32 qh; // trial quotient
-    int d;    // normalization factor
+    INT32 d;  // normalization factor
 
-    int j;    // index
-    int n;    // # digits in u
-    int t;    // # digits in v
-
-    // work with local copies
+    // Work with local copies.
     u = *this;
     v = m;
 
-    // normalize
-    d = 0;
-    while(v.MSDigit() < MOD_VALUE/2)
+    // Normalize.
+    d = MOD_VALUE / (v.MSDigit() + 1);
+    u *= (int)d;
+    v *= (int)d;
+
+    // Get # digits.
+    int t = v.Size(); // # digits in u.
+    int n = u.Size(); // # digits in v.
+
+    // Main calculation loop.
+    for(int j=n; j>=t; --j)
     {
-        u.Mult2();
-        v.Mult2();
-        ++d;
-    }
+        // Calculate trial quotient, get LOWORD.
+        qh = (((INT64)u.mArray[j] * MOD_VALUE) + u.mArray[j-1]) / v.mArray[t-1];
 
-    // get # digits
-    t = v.Size();
-    n = u.Size();
-
-    // main calculation loop
-    for(j=n; j>=t; --j)
-    {
-        // calculate trial quotient, get LOWORD
-        INT64 temp = (((INT64)u.m_ar[j] * MOD_VALUE) + u.m_ar[j-1]) / v.m_ar[t-1];
-        qh = (INT32)temp;
-
-        // adjust quotient if too large
+        // Adjust quotient if too large.
         if(qh & MOD_VALUE)
             qh = MOD_VALUE -1;
 
-        // multiply and subtract
+        // Multiply and subtract.
         s = v;
         s.ShiftLeft(j-t);
         u -= s * qh;
 
-        // adjust result if it went negative
-        while(u.m_ar[MAX_ARRAY-1] == MOD_VALUE-1)
-            u += s; // add back
+        // Adjust result if it went negative.
+        while(u.mArray[MAX_ARRAY-1] == MOD_VALUE-1)
+        {
+            u += s; // Add back.
+        }
     }
 
-    // un-normalize
-    for(j=0; j<d; ++j)
-    {
-        u.Div2();
-    }
+    // Un-normalize.
+    u /= d;
 
-    // fix flag if it ever went negative
-    u.m_bOverflow = FALSE;
+    // Fix flag if it ever went negative.
+    u.mIsOverflow = false;
 
-    return u;  // the remainder
+    return u;  // The remainder.
 }
 
-// normal modulus MPI with int
-MPI MPI::operator%(const int n) const
+// Modulus MPI % int.
+MPI MPI::operator%(int n) const
 {
     return *this % MPI(n);
+}
+
+// Division, Quotient and Remainder, MPI / MPI.
+// Algorithm based on Knuth, D, p. 257.
+MPI MPI::Divide(const MPI& v1, MPI& u) const
+{
+    MPI q;    // quotient
+    MPI v;    // divisor
+    MPI s;    // trial subtract amount
+    INT32 qh; // trial quotient
+    INT32 d;  // normalization factor
+
+    // Work with local copies.
+    u = *this;
+    v = v1;
+
+    // Normalize.
+    d = MOD_VALUE / (v.MSDigit() + 1);
+    u *= (int)d;
+    v *= (int)d;
+
+    // Get # digits.
+    int t = v.Size(); // # digits in u.
+    int n = u.Size(); // # digits in v.
+
+    // Main calculation loop.
+    for(int j=n; j>=t; --j)
+    {
+        // Calculate trial quotient, get LOWORD.
+        qh = (((INT64)u.mArray[j] * MOD_VALUE) + u.mArray[j-1]) / v.mArray[t-1];
+
+        // Adjust quotient if too large.
+        if(qh & MOD_VALUE)
+            qh = MOD_VALUE -1;
+
+        // Multiply and subtract.
+        s = v;
+        s.ShiftLeft(j-t);
+        u -= s * qh;
+
+        // Adjust result if it went negative.
+        while(u.mArray[MAX_ARRAY-1] == MOD_VALUE-1)
+            u += s; // Add back.
+
+        // Set the quotient digit we just found.
+        q.mArray[j-t] = qh;
+    }
+
+    // Un-normalize.
+    u /= d;
+
+    // Fix flag if it ever went negative.
+    u.mIsOverflow = false;
+
+    // Remainder is returned in u.
+    return q;
 }
 
 /*****************************************************************************/
 // EXPONENTS AND MODULAR ARITHMETIC
 /*****************************************************************************/
 
-// exponential
+// Exponential MPI ^ MPI.
+// Algorithm based on CLR, p. 829.
 MPI MPI::operator^(const MPI& y) const
 {
     MPI w;  // return value
     MPI s;  // shifted exponent
     int n;  // digits in exponent
     int k;  // bits in exponent
-    int i;  // index
 
     // shifted exponent
     s = y;
 
-    // how many times to loop
+    // How many times to loop.
     n = y.Size();
     k = n * SHIFT_VALUE;
 
-    // x ^ 0 = 1
+    // x ^ 0 = 1.
     if(!n) return MPI(1);
 
-    // main loop
-    for(i=0, w=1; i<k; ++i)
+    // Main loop.
+    w = 1;
+    for(int i=0; i<k; ++i)
     {
-        // square
+        // Square.
         w *= w;
 
-        // multiply
-        if(s.m_ar[n-1] & MOD_VALUE/2)
+        // Multiply.
+        if(s.mArray[n-1] & MOD_VALUE/2)
             w *= *this;
 
-        // shift
+        // Shift.
         s.Mult2();
     }
+
     return w;
 }
 
-// exponential
-MPI MPI::operator^(const int n) const
+// Exponential MPI ^ int.
+MPI MPI::operator^(int n) const
 {
     return *this ^ MPI(n);
 }
 
-// modular multiplication
-// Algorihthm using definition of modular arithmetic
+// Modular Multiplication.
+// Algorithm based on Menezes, 14.28 p. 600.
 MPI MPI::ModMult(const MPI& y1, const MPI& m) const
 {
     MPI w;
@@ -596,43 +739,44 @@ MPI MPI::ModMult(const MPI& y1, const MPI& m) const
     return w;
 }
 
-// modular exponetial
-// Algorihthm using repeated squaring, CLR p. 829
+// Modular Exponetial, Repeated Squaring.
+// Algorithm based on CLR, p. 829.
 MPI MPI::ModPow(const MPI& y, const MPI& m) const
 {
     MPI w;  // return value
     MPI s;  // shifted exponent
     int n;  // digits in exponent
     int k;  // bits in exponent
-    int i;  // index
 
-    // shifted exponent
+    // Shifted exponent.
     s = y;
 
-    // how many times to loop
+    // How many times to loop.
     n = y.Size();
     k = n * SHIFT_VALUE;
 
-    // x ^ 0 = 1
+    // x ^ 0 = 1.
     if(!n) return MPI(1);
 
-    // main loop
-    for(i=0, w=1; i<k; ++i)
+    // Main loop.
+    w = 1;
+    for(int i=0; i<k; ++i)
     {
-        // square
+        // Square.
         w *= w;
         w %= m;
 
-        // multiply
-        if(s.m_ar[n-1] & MOD_VALUE/2)
+        // Multiply.
+        if(s.mArray[n-1] & MOD_VALUE/2)
         {
             w *= *this;
             w %= m;
         }
 
-        // shift
+        // Shift.
         s.Mult2();
     }
+
     return w;
 }
 
@@ -644,48 +788,58 @@ MPI MPI::operator+=(const MPI& m)
 {
     return *this = *this + m;
 }
+
 MPI MPI::operator-=(const MPI& m)
 {
     return *this = *this - m;
 }
+
 MPI MPI::operator*=(const MPI& m)
 {
     return *this = *this * m;
 }
+
 MPI MPI::operator/=(const MPI& m)
 {
     return *this = *this / m;
 }
+
 MPI MPI::operator%=(const MPI& m)
 {
     return *this = *this % m;
 }
+
 MPI MPI::operator^=(const MPI& m)
 {
     return *this = *this ^ m;
 }
 
-MPI MPI::operator+=(const int n)
+MPI MPI::operator+=(int n)
 {
     return *this = *this + n;
 }
-MPI MPI::operator-=(const int n)
+
+MPI MPI::operator-=(int n)
 {
     return *this = *this - n;
 }
-MPI MPI::operator*=(const int n)
+
+MPI MPI::operator*=(int n)
 {
     return *this = *this * n;
 }
-MPI MPI::operator/=(const int n)
+
+MPI MPI::operator/=(int n)
 {
     return *this = *this / n;
 }
-MPI MPI::operator%=(const int n)
+
+MPI MPI::operator%=(int n)
 {
     return *this = *this % n;
 }
-MPI MPI::operator^=(const int n)
+
+MPI MPI::operator^=(int n)
 {
     return *this = *this ^ n;
 }
@@ -717,112 +871,122 @@ MPI MPI::operator--(int)
 // LOGICAL OPERATORS/ COMPARISON/ SHIFTING
 /*****************************************************************************/
 
-BOOL MPI::operator<(const MPI& m) const
+bool MPI::operator<(const MPI& m) const
 {
     MPI x;
 
     x = *this - m;
-    return x.m_bOverflow;
+    return x.mIsOverflow;
 }
 
-BOOL MPI::operator<=(const MPI& m) const
+bool MPI::operator<=(const MPI& m) const
 {
     MPI x;
 
     x = m - *this;
-    return !x.m_bOverflow;
+    return !x.mIsOverflow;
 }
 
-BOOL MPI::operator>(const MPI& m) const
+bool MPI::operator>(const MPI& m) const
 {
     MPI x;
 
     x = m - *this;
-    return x.m_bOverflow;
+    return x.mIsOverflow;
 }
 
-BOOL MPI::operator>=(const MPI& m) const
+bool MPI::operator>=(const MPI& m) const
 {
     MPI x;
 
     x = *this - m;
-    return !x.m_bOverflow;
+    return !x.mIsOverflow;
 }
 
-BOOL MPI::operator==(const MPI& m) const
+bool MPI::operator==(const MPI& m) const
 {
-    int i;
-
-    for(i=0; i<MAX_ARRAY; ++i)
+    for(int i=0; i<MAX_ARRAY; ++i)
     {
-        if(m.m_ar[i] != m_ar[i])
-            return FALSE;
+        if(m.mArray[i] != mArray[i])
+        {
+            return false;
+        }
     }
-    return TRUE;
+
+    return true;
 }
 
-BOOL MPI::operator!=(const MPI& m) const
+bool MPI::operator!=(const MPI& m) const
 {
-    int i;
-
-    for(i=0; i<MAX_ARRAY; ++i)
+    for(int i=0; i<MAX_ARRAY; ++i)
     {
-        if(m.m_ar[i] != m_ar[i])
-            return TRUE;
+        if(m.mArray[i] != mArray[i])
+        {
+            return true;
+        }
     }
-    return FALSE;
+
+    return false;
 }
 
 /*****************************************************************************/
-// DECIMAL CONVERSION AND I/O
+// CONVERSIONS AND I/O
 /*****************************************************************************/
 
-// convert the MPI type to a character string representation of decimal
-char* MPI::String(char a[]) const
+// Convert to integer.
+int MPI::Integer() const
 {
-    int i;       // index into a[]
+    // If the value is too large, flag an error.
+    if(Size() > 1)
+    {
+        return -1;
+    }
+
+    return (int)mArray[0];
+}
+
+// Convert to a character string representation in decimal.
+char* MPI::String(char sz[]) const
+{
     MPI q;       // quotient
-    MPI b;       // base
-    MPI x;       // residue
+    MPI r;       // remaider
     MPI zero;
+    MPI base;
 
-    i = 0;
-    b = 10;
-    x = *this;
-
-    // don't print junk
-    if(Size() == MAX_ARRAY || m_bOverflow)
+    // Don't print invalid number.
+    if(Size() >= MAX_ARRAY || mIsOverflow)
     {
-        strcpy(a, "ERROR");
-        return a;
+        strcpy(sz, "ERROR");
+        return sz;
     }
+
+    base = BASE;
+    int i = 0;
+    q = *this;
 
     do
     {
-        q = x / b;
-        x = (x - (q * b));
-        a[i] = x.m_ar[0] + '0';
-        ++i;
-        x = q;
+        q = q.Divide(base, r);
+        sz[i++] = r.mArray[0] + '0';
     }
     while(q != zero);
 
-    a[i] = '\0';
+    sz[i] = '\0';
     --i;
 
-    // reverse the string into human readable order
-    int j;
+    // Reverse the string into human readable order.
     char temp;
-    for(j=0; j<=(i/2); ++j)
+    for(int j=0; j<=(i/2); ++j)
     {
-        temp = a[j];
-        a[j] = a[i-j];
-        a[i-j] = temp;
+        temp = sz[j];
+        sz[j] = sz[i-j];
+        sz[i-j] = temp;
     }
-    return a;
+
+    return sz;
 }
 
-// stream output
+// Stream output.
 ostream& operator<<(ostream& os, MPI& m)
 {
     char sz[MPI_BUFF];
@@ -832,7 +996,7 @@ ostream& operator<<(ostream& os, MPI& m)
     return os;
 }
 
-// stream input
+// Stream input.
 istream& operator>>(istream& is, MPI& m)
 {
     char sz[MPI_BUFF];
@@ -846,140 +1010,151 @@ istream& operator>>(istream& is, MPI& m)
 // HELPER FUNCTIONS AND DIAGNOSTICS
 /*****************************************************************************/
 
-// check for digit overflow and overflow flag
-BOOL MPI::IsValid() const
+// Check for digit overflow and overflow flag.
+bool MPI::IsValid() const
 {
-    int i;
-
-    if(m_bOverflow)
-        return FALSE;
-
-    for(i=0; i<MAX_ARRAY; ++i)
+    if(mIsOverflow)
     {
-        if(m_ar[i] > MOD_VALUE || m_ar[i] < 0)
-            return FALSE;
+        return false;
     }
 
-    return TRUE;
+    for(int i=0; i<MAX_ARRAY; ++i)
+    {
+        if(mArray[i] > MOD_VALUE || mArray[i] < 0)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
-// diagnostic display internal representation
+// Diagnostic display of the internal representation.
 void MPI::Display() const
 {
-    int i;
-
     cout << "MPI [";
-    for(i=0; i<MAX_ARRAY; ++i)
-        cout << m_ar[i] << ", ";
+    for(int i=0; i<MAX_ARRAY; ++i)
+    {
+        cout << mArray[i] << ", ";
+    }
 
     cout << "]\n";
 }
 
-// most significant digit
+// Most significant digit.
 INT32 MPI::MSDigit() const
 {
-    int i;
-
-    for(i=MAX_ARRAY-1; i>=0; --i)
+    for(int i=MAX_ARRAY-1; i>=0; --i)
     {
-        if(m_ar[i] != 0)
-            return m_ar[i];
+        if(mArray[i] != 0)
+        {
+            return mArray[i];
+        }
     }
+
     return 0;
 }
 
-// how many significant digits
+// Count the number of significant digits.
 int MPI::Size() const
 {
-    int i;
-
-    for(i=MAX_ARRAY-1; i>=0; --i)
+    for(int i=MAX_ARRAY-1; i>=0; --i)
     {
-        if(m_ar[i] != 0)
+        if(mArray[i] != 0)
+        {
             return i+1;
+        }
     }
+
     return 0;
 }
 
-// return the largest size of two arguments
-inline int MPI::Largest(MPI& m) const
+// Return the largest size of two arguments.
+inline int MPI::Largest(const MPI& m) const
 {
     int a, b, s;
 
-    a = Size();   // size of left argument
-    b = m.Size(); // size of right argument
+    a = Size();   // Size of left argument.
+    b = m.Size(); // Size of right argument.
 
-    // find largest size argument
+    // Find larger argument.
     if(a > b)
+    {
         s = a;
+    }
     else
+    {
         s = b;
+    }
 
     return s + 1;
 }
 
-// shift by n digit positions
+// Shift by n digit positions.
 void MPI::ShiftLeft(const int n)
 {
-    int i;  // index
-
     if(n >= MAX_ARRAY-1)
     {
-        m_bOverflow = TRUE;
+        mIsOverflow = true;
         return;
     }
 
-    for(i=MAX_ARRAY-1; i>n-1; --i)
-        m_ar[i] = m_ar[i-n];
+    for(int i=MAX_ARRAY-1; i>n-1; --i)
+    {
+        mArray[i] = mArray[i-n];
+    }
 
-    for(i=n-1; i>=0; --i)
-        m_ar[i] = 0;
+    for(int i=n-1; i>=0; --i)
+    {
+        mArray[i] = 0;
+    }
 }
 
-// shift by n digit positions,
+// Shift by n digit positions.
 void MPI::ShiftRight(const int n)
 {
-    int i;  // index
-
     if(n >= MAX_ARRAY-1)
     {
-        m_bOverflow = TRUE;
+        mIsOverflow = true;
         return;
     }
 
-    for(i=n; i<MAX_ARRAY; ++i)
-        m_ar[i-n] = m_ar[i];
+    for(int i=n; i<MAX_ARRAY; ++i)
+    {
+        mArray[i-n] = mArray[i];
+    }
 
-    for(i=MAX_ARRAY-n; i<MAX_ARRAY; ++i)
-        m_ar[i] = 0;
+    for(int i=MAX_ARRAY-n; i<MAX_ARRAY; ++i)
+    {
+        mArray[i] = 0;
+    }
 }
 
-// multiply using bit shift
+// Simple multiply using bit shift.
 void MPI::Mult2()
 {
-    int i;   // index
-    INT32 c; // carry
+    INT32 carry = 0;
 
-    for(i=0, c=0; i<MAX_ARRAY; ++i)
+    for(int i=0; i<MAX_ARRAY; ++i)
     {
-        m_ar[i] <<= 1;
-        if(c) m_ar[i] |= 1;
-        c = m_ar[i] & MOD_VALUE;
-        m_ar[i] &= MOD_VALUE-1;
+        mArray[i] <<= 1;
+        if(carry) mArray[i] |= 1;
+
+        carry = mArray[i] & MOD_VALUE;
+        mArray[i] &= MOD_VALUE-1;
     }
 }
 
-// divide using bit shift
+// Simple divide using bit shift.
 void MPI::Div2()
 {
-    int i;   // index
-    INT32 c; // carry
+    INT32 carry = 0;
 
-    for(i=MAX_ARRAY-1, c=0; i>=0; --i)
+    for(int i=MAX_ARRAY-1; i>=0; --i)
     {
-        if(c) m_ar[i] |= MOD_VALUE;
-        c = m_ar[i] & 1;
-        m_ar[i] >>= 1;
+        if(carry) mArray[i] |= MOD_VALUE;
+
+        carry = mArray[i] & 1;
+        mArray[i] >>= 1;
     }
 }
-
