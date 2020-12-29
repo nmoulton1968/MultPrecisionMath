@@ -8,9 +8,9 @@ pipeline
         {
             steps
             {
-                echo "Committer: ${GIT_COMMITTER_NAME}."
-                echo "Email:     ${GIT_COMMITTER_EMAIL}."
-                echo "Branch:    ${BRANCH_NAME}."
+                echo "Committer: ${env.GIT_COMMITTER_NAME}."
+                echo "Email:     ${env.GIT_COMMITTER_EMAIL}."
+                echo "Branch:    ${env.BRANCH_NAME}."
             }
         }
 
@@ -35,8 +35,8 @@ pipeline
                     targetLocation: "/home/nmoulton/Documents/JenkinsBuilds"
                 )])
 
-                echo "Contents of output folder:"
-                sh 'ls /home/nmoulton/Documents/JenkinsBuilds/'
+                //echo "Contents of output folder:"
+                //sh 'ls /home/nmoulton/Documents/JenkinsBuilds/'
             }
         }
     }
