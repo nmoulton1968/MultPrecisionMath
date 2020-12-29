@@ -20,6 +20,7 @@ pipeline
             {
                 echo "Building . . ."
                 sh 'make pi'
+                sh 'make e'
             }
         }
 
