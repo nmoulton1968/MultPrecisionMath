@@ -26,7 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "mpim.h"
 #include <string.h>
 
-main()
+int main()
 {
     cout << "Calculating . . .\n";
     cout.flush();

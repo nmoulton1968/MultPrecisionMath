@@ -16,4 +16,4 @@ mpim.o :	mpim.cpp mpim.h
 	$(CXX) -c mpim.cpp $(CXXFLAGS)
 
 clean:
-	del /q *.o *.orig pi.exe e.exe
+	rm -f -v *.o *.orig pi.exe e.exe
