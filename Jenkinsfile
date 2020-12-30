@@ -4,16 +4,6 @@ pipeline
     
     stages
     {
-        stage ("identification")
-        {
-            steps
-            {
-                echo "Committer: ${env.GIT_COMMITTER_NAME}."
-                echo "Email:     ${env.GIT_COMMITTER_EMAIL}."
-                echo "Branch:    ${env.BRANCH_NAME}."
-            }
-        }
-
         stage ("build")
         {
             steps
@@ -36,8 +26,8 @@ pipeline
                     targetLocation: "/home/nmoulton/Documents/JenkinsBuilds"
                 )])
 
-                //echo "Contents of output folder:"
-                //sh 'ls /home/nmoulton/Documents/JenkinsBuilds/'
+                echo "Contents of output folder:"
+                sh 'ls /home/nmoulton/Documents/JenkinsBuilds/'
             }
         }
     }
